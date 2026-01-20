@@ -1,208 +1,211 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { CAPACIDADE_QUARTO } from '@/lib/capacidade';
 
 type Reserva = {
   id: number;
   quarto: string;
   checkin: string;
   checkout: string;
-  nomeHospede: string;
-  source: string;
-  status: string;
+  camas: number;
 };
 
-type DayType = 'free' | 'checkin' | 'checkout' | 'occupied' | 'selected';
-
-interface RoomCalendarProps {
-  quarto: string;
-}
-
-export default function RoomCalendar({ quarto }: RoomCalendarProps) {
+export default function RoomCalendar({ quarto }: { quarto: string }) {
   const [reservas, setReservas] = useState<Reserva[]>([]);
+  const [checkin, setCheckin] = useState<Date | null>(null);
+  const [checkout, setCheckout] = useState<Date | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selection, setSelection] = useState<{ checkin: Date | null; checkout: Date | null }>({
-    checkin: null,
-    checkout: null,
+
+  useEffect(() => {
+    fetch('/api/reservas')
+      .then(res => res.json())
+      .then(setReservas);
+  }, []);
+
+  const capacidade = CAPACIDADE_QUARTO[quarto] ?? 1;
+
+  /* ---------------- Datas do mês ---------------- */
+
+  const startOfMonth = new Date(
+    currentMonth.getFullYear(),
+    currentMonth.getMonth(),
+    1
+  );
+
+  const daysInMonth = new Date(
+    currentMonth.getFullYear(),
+    currentMonth.getMonth() + 1,
+    0
+  ).getDate();
+
+  const days = Array.from({ length: daysInMonth }, (_, i) => {
+    const d = new Date(startOfMonth);
+    d.setDate(i + 1);
+    return d;
   });
 
-  // Buscar reservas da API
-  useEffect(() => {
-    async function fetchReservas() {
-      const res = await fetch('/api/reservas');
-      const data: Reserva[] = await res.json();
-      setReservas(data.filter((r) => r.quarto === quarto));
-    }
-    fetchReservas();
-  }, [quarto]);
+  /* ---------------- Lógica de ocupação ---------------- */
 
-  // Navegação meses
-  const prevMonth = () => {
-    const prev = new Date(currentMonth);
-    prev.setMonth(prev.getMonth() - 1);
-    setCurrentMonth(prev);
-  };
+function startOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
 
-  const nextMonth = () => {
-    const next = new Date(currentMonth);
-    next.setMonth(next.getMonth() + 1);
-    setCurrentMonth(next);
-  };
+function camasOcupadasNoDia(day: Date) {
+  const day0 = startOfDay(day);
 
-  // Dias do mês
-  const daysInMonth = (year: number, month: number) => {
-    const date = new Date(year, month, 1);
-    const days: Date[] = [];
-    while (date.getMonth() === month) {
-      days.push(new Date(date));
-      date.setDate(date.getDate() + 1);
-    }
-    return days;
-  };
+  return reservas.reduce((sum, r) => {
+    const ci0 = startOfDay(new Date(r.checkin));
+    const co0 = startOfDay(new Date(r.checkout)); // dia de checkout NÃO conta
 
-  const days = daysInMonth(currentMonth.getFullYear(), currentMonth.getMonth());
+    // ocupa se day está em [checkinDay, checkoutDay)
+    const ocupa = day0 >= ci0 && day0 < co0;
 
-  // Tooltip e estilos
-  const titleMap: Record<DayType, string> = {
-    free: 'Disponível',
-    checkin: 'Check-in (14:00)',
-    checkout: 'Check-out (11:00)',
-    occupied: 'Ocupado',
-    selected: 'Selecionado',
-  };
+    if (!ocupa) return sum;
 
-  const styles: Record<DayType, string> = {
-    free: 'bg-emerald-100 text-emerald-700 cursor-pointer hover:bg-emerald-200',
-    checkin: 'bg-emerald-400 text-white font-bold cursor-pointer',
-    checkout: 'bg-yellow-300 text-yellow-900 font-bold cursor-pointer',
-    occupied: 'bg-gray-300 text-gray-500 line-through cursor-not-allowed',
-    selected: 'bg-emerald-500 text-white font-semibold',
-  };
+    const camas = Number(r.camas || 0);
+    return sum + (Number.isFinite(camas) ? camas : 0);
+  }, 0);
+}
 
-  const monthName = currentMonth.toLocaleString('pt-PT', { month: 'long', year: 'numeric' });
 
-  // Tipo do dia
-  const getDayType = (day: Date): DayType => {
-    for (const r of reservas) {
-      const checkin = new Date(r.checkin);
-      const checkout = new Date(r.checkout);
+  function estadoDoDia(day: Date) {
+    const ocupadas = camasOcupadasNoDia(day);
 
-      if (day.toDateString() === checkin.toDateString()) return 'checkin';
-      if (day.toDateString() === checkout.toDateString()) return 'checkout';
-      if (day > checkin && day < checkout) return 'occupied';
+    if (ocupadas === 0) return 'free';
+    if (ocupadas < capacidade) return 'partial';
+    return 'full';
+  }
+
+  /* ---------------- Seleção ---------------- */
+
+  function isSelected(day: Date) {
+    if (!checkin) return false;
+
+    if (checkin && !checkout) {
+      return day.toDateString() === checkin.toDateString();
     }
 
-    if (selection.checkin && selection.checkout) {
-      if (day >= selection.checkin && day <= selection.checkout) return 'selected';
-    }
+    return (
+      checkout &&
+      day >= checkin &&
+      day < checkout
+    );
+  }
 
-    if (selection.checkin && !selection.checkout) {
-      if (day.toDateString() === selection.checkin.toDateString()) return 'selected';
-    }
+  function handleClick(day: Date) {
+    const estado = estadoDoDia(day);
 
-    return 'free';
-  };
+    // escolher check-in
+    if (!checkin) {
+      if (estado === 'full') return;
 
-  // Seleção check-in / check-out
-  const handleDayClick = (day: Date) => {
-    const type = getDayType(day);
-
-    if (type === 'occupied') return;
-
-    // Primeiro clique = check-in
-    if (!selection.checkin) {
-      if (type === 'free' || type === 'checkout') {
-        setSelection({ checkin: day, checkout: null });
-      }
+      const d = new Date(day);
+      d.setHours(14, 0, 0, 0);
+      setCheckin(d);
       return;
     }
 
-    // Segundo clique = check-out
-    if (!selection.checkout) {
-      if (type !== 'free' && type !== 'checkin') return;
+    // escolher check-out
+    if (checkin && !checkout) {
+      if (day <= checkin) return;
+      if (estado === 'full') return;
 
-      // Não permitir check-in e check-out no mesmo dia
-      if (day.toDateString() === selection.checkin.toDateString()) {
-        alert('O check-out deve ser pelo menos 1 dia depois do check-in.');
-        return;
+      // verificar dias intermédios
+      for (
+        let d = new Date(checkin);
+        d < day;
+        d.setDate(d.getDate() + 1)
+      ) {
+        if (estadoDoDia(d) !== 'free') return;
       }
 
-      const start = selection.checkin;
-      const end = day > start ? day : start;
-      const intervalValid = days
-        .filter((d) => d > start && d < end) // apenas os dias entre checkin e checkout
-        .every((d) => getDayType(d) === 'free');
-
-      if (!intervalValid) {
-        alert('O intervalo contém dias ocupados, escolha outro.');
-        return;
-      }
-
-      setSelection({ ...selection, checkout: day });
+      const out = new Date(day);
+      out.setHours(11, 0, 0, 0);
+      setCheckout(out);
       return;
     }
 
-    // Reiniciar seleção
-    setSelection({ checkin: day, checkout: null });
-  };
+    // reset
+    setCheckin(null);
+    setCheckout(null);
+  }
+
+  /* ---------------- UI ---------------- */
 
   return (
-    <div className="space-y-4">
-      {/* Navegação do mês */}
-      <div className="flex justify-between items-center mb-2">
+    <div>
+      <div className="flex justify-between mb-3 items-center">
         <button
-          onClick={prevMonth}
-          className="px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+          onClick={() =>
+            setCurrentMonth(
+              new Date(
+                currentMonth.getFullYear(),
+                currentMonth.getMonth() - 1
+              )
+            )
+          }
         >
           ←
         </button>
-        <span className="font-semibold text-lg">{monthName}</span>
+
+        <strong className="capitalize">
+          {currentMonth.toLocaleDateString('pt-PT', {
+            month: 'long',
+            year: 'numeric',
+          })}
+        </strong>
+
         <button
-          onClick={nextMonth}
-          className="px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+          onClick={() =>
+            setCurrentMonth(
+              new Date(
+                currentMonth.getFullYear(),
+                currentMonth.getMonth() + 1
+              )
+            )
+          }
         >
           →
         </button>
       </div>
 
-      {/* Cabeçalho dias da semana */}
-      <div className="grid grid-cols-7 gap-2 text-center font-semibold text-gray-700">
-        {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
-          <div key={i}>{d}</div>
-        ))}
-      </div>
-
-      {/* Dias */}
       <div className="grid grid-cols-7 gap-2">
-        {days.map((day) => {
-          const type = getDayType(day);
-          const clickable = type === 'free' || type === 'checkin' || type === 'checkout';
+        {days.map(day => {
+          const estado = estadoDoDia(day);
+          const ocupadas = camasOcupadasNoDia(day);
+
           return (
             <div
               key={day.toISOString()}
-              className={`p-3 text-center rounded-lg text-sm font-medium ${styles[type]} ${
-                clickable ? 'transition hover:scale-105' : ''
-              }`}
-              title={titleMap[type]}
-              onClick={() => clickable && handleDayClick(day)}
+              onClick={() => handleClick(day)}
+              className={`p-3 rounded text-center text-sm select-none
+                ${
+                  estado === 'free'
+                    ? 'bg-emerald-100 cursor-pointer'
+                    : estado === 'partial'
+                    ? 'bg-yellow-200 cursor-pointer'
+                    : 'bg-red-300 cursor-not-allowed'
+                }
+                ${isSelected(day) ? 'ring-2 ring-black' : ''}
+              `}
             >
               {day.getDate()}
+              <div className="text-xs">
+                {ocupadas}/{capacidade}
+              </div>
             </div>
           );
         })}
       </div>
 
-      {/* Informações da seleção */}
-      {selection.checkin && selection.checkout && (
-        <div className="mt-2 text-sm text-gray-700">
-          <strong>Check-in:</strong> {selection.checkin.toLocaleDateString()} |{' '}
-          <strong>Check-out:</strong> {selection.checkout.toLocaleDateString()}
-        </div>
-      )}
-      {selection.checkin && !selection.checkout && (
-        <div className="mt-2 text-sm text-gray-700">
-          <strong>Check-in:</strong> {selection.checkin.toLocaleDateString()} (aguardando check-out)
-        </div>
+      {checkin && checkout && (
+        <p className="mt-3 text-sm">
+          Check-in: {checkin.toLocaleString('pt-PT')} | Check-out:{' '}
+          {checkout.toLocaleString('pt-PT')}
+        </p>
       )}
     </div>
   );

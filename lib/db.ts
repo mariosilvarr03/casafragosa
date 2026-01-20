@@ -1,6 +1,12 @@
+// lib/db.ts
 import Database from 'better-sqlite3';
 
-const db = new Database('data/dev.db');
+import path from 'path';
+
+
+const dbPath = path.join(process.cwd(), 'data', 'dev.db');
+const db = new Database(dbPath);
+
 
 // criar tabela se não existir
 db.exec(`
@@ -9,6 +15,7 @@ db.exec(`
     quarto TEXT NOT NULL,
     checkin TEXT NOT NULL,
     checkout TEXT NOT NULL,
+    camas INTEGER NOT NULL DEFAULT 1,
     nomeHospede TEXT NOT NULL,
     source TEXT NOT NULL,
     status TEXT NOT NULL

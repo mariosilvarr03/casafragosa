@@ -4,15 +4,15 @@ import RoomCalendar from '../../components/RoomCalendar';
 const rooms = {
   dormitorio: {
     name: 'Dormitório',
-    price: '15€ / noite',
-    capacity: 'Até 9 pessoas',
+    price: '25€ / noite',
+    capacity: 'Até 8 pessoas',
     description:
-      'Quarto partilhado com 9 camas, casa de banho e cozinha partilhadas.',
+      'Quarto partilhado com 8 camas, casa de banho e cozinha partilhadas.',
     images: ['/dormitorio.jpg', '/dormitorio.jpg', '/dormitorio.jpg'],
   },
   suite: {
     name: 'Quarto Suite',
-    price: '80€ / noite',
+    price: '70€ / noite',
     capacity: 'Até 4 pessoas',
     description:
       'Suite com 1 cama de casal, 2 individuais, casa de banho privada e acesso à cozinha.',
@@ -20,7 +20,7 @@ const rooms = {
   },
   estudio: {
     name: 'Estúdio',
-    price: '100€ / noite',
+    price: '90€ / noite',
     capacity: 'Até 5 pessoas',
     description:
       'Estúdio totalmente equipado com cozinha privada e casa de banho.',
@@ -28,7 +28,7 @@ const rooms = {
   },
   t2: {
     name: 'T2',
-    price: '120€ / noite',
+    price: '90€ / noite',
     capacity: 'Até 4 pessoas',
     description:
       'Apartamento T2 com sala, cozinha equipada e dois quartos.',

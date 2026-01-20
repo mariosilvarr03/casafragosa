@@ -55,8 +55,8 @@ export default function HomePage() {
           {[
             {
               title: 'Dormitório',
-              desc: 'Quarto partilhado com 9 camas.',
-              capacity: 'Até 9 pessoas',
+              desc: 'Quarto partilhado com 8 camas.',
+              capacity: 'Até 8 pessoas',
               slug: 'dormitorio',
               image: '/dormitorio.jpg',
             },

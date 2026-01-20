@@ -17,10 +17,10 @@ export default function QuartosPage() {
         <RoomCard
           title="Dormitório"
           image="/exemplo.jpg"
-          capacity="Até 9 pessoas"
-          description="Quarto partilhado com 9 camas, casa de banho partilhada e acesso a cozinha partilhada."
+          capacity="Até 8 pessoas"
+          description="Quarto partilhado com 8 camas, casa de banho partilhada e acesso a cozinha partilhada."
           features={[
-            '9 camas individuais',
+            '8 camas individuais',
             'Casa de banho partilhada',
             'Cozinha partilhada',
           ]}

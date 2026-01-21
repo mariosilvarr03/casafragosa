@@ -16,7 +16,7 @@ export default function QuartosPage() {
       <div className="space-y-12">
         <RoomCard
           title="Dormitório"
-          image="/exemplo.jpg"
+          image="/dormitorio.jpg"
           capacity="Até 8 pessoas"
           description="Quarto partilhado com 8 camas, casa de banho partilhada e acesso a cozinha partilhada."
           features={[
@@ -29,7 +29,7 @@ export default function QuartosPage() {
 
         <RoomCard
           title="Quarto Suite"
-          image="/exemplo.jpg"
+          image="/suite.jpg"
           capacity="Até 4 pessoas"
           description="Suite confortável com 1 cama de casal e 2 camas individuais, casa de banho privada e acesso à cozinha do dormitório."
           features={[
@@ -42,7 +42,7 @@ export default function QuartosPage() {
 
         <RoomCard
           title="Estúdio"
-          image="/exemplo.jpg"
+          image="/estudio.jpg"
           capacity="Até 5 pessoas"
           description="Estúdio totalmente equipado com cozinha privada, ideal para famílias ou grupos."
           features={[
@@ -56,7 +56,7 @@ export default function QuartosPage() {
 
         <RoomCard
           title="T2"
-          image="/exemplo.jpg"
+          image="/t2.jpg"
           capacity="Até 4 pessoas"
           description="Apartamento T2 com sala, cozinha equipada e dois quartos independentes."
           features={[

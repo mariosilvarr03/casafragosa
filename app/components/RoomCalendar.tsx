@@ -45,31 +45,42 @@ export default function RoomCalendar({ quarto }: { quarto: string }) {
     return d;
   });
 
-  /* ---------------- Lógica de ocupação ---------------- */
+  /* ---------------- Helpers ---------------- */
 
-function startOfDay(d: Date) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
+  function startOfDay(d: Date) {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
+  }
 
-function camasOcupadasNoDia(day: Date) {
-  const day0 = startOfDay(day);
+  function sameDay(a: Date, b: Date) {
+    return startOfDay(a).getTime() === startOfDay(b).getTime();
+  }
 
-  return reservas.reduce((sum, r) => {
-    const ci0 = startOfDay(new Date(r.checkin));
-    const co0 = startOfDay(new Date(r.checkout)); // dia de checkout NÃO conta
+  function inRange(day: Date, start: Date, end: Date) {
+    // inclusive start, inclusive end for selection UI
+    const d = startOfDay(day).getTime();
+    const s = startOfDay(start).getTime();
+    const e = startOfDay(end).getTime();
+    return d >= s && d <= e;
+  }
 
-    // ocupa se day está em [checkinDay, checkoutDay)
-    const ocupa = day0 >= ci0 && day0 < co0;
+  function camasOcupadasNoDia(day: Date) {
+    const day0 = startOfDay(day);
 
-    if (!ocupa) return sum;
+    return reservas.reduce((sum, r) => {
+      const ci0 = startOfDay(new Date(r.checkin));
+      const co0 = startOfDay(new Date(r.checkout)); // dia de checkout NÃO conta
 
-    const camas = Number(r.camas || 0);
-    return sum + (Number.isFinite(camas) ? camas : 0);
-  }, 0);
-}
+      // ocupa se day está em [checkinDay, checkoutDay)
+      const ocupa = day0 >= ci0 && day0 < co0;
 
+      if (!ocupa) return sum;
+
+      const camas = Number(r.camas || 0);
+      return sum + (Number.isFinite(camas) ? camas : 0);
+    }, 0);
+  }
 
   function estadoDoDia(day: Date) {
     const ocupadas = camasOcupadasNoDia(day);
@@ -81,18 +92,17 @@ function camasOcupadasNoDia(day: Date) {
 
   /* ---------------- Seleção ---------------- */
 
-  function isSelected(day: Date) {
+  function isInSelectedRange(day: Date) {
     if (!checkin) return false;
+    if (checkin && !checkout) return sameDay(day, checkin);
+    return checkout ? inRange(day, checkin, checkout) : false;
+  }
 
-    if (checkin && !checkout) {
-      return day.toDateString() === checkin.toDateString();
-    }
-
-    return (
-      checkout &&
-      day >= checkin &&
-      day < checkout
-    );
+  function isRangeEdge(day: Date) {
+    if (!checkin) return false;
+    if (checkin && !checkout) return sameDay(day, checkin);
+    if (!checkout) return false;
+    return sameDay(day, checkin) || sameDay(day, checkout);
   }
 
   function handleClick(day: Date) {
@@ -110,16 +120,22 @@ function camasOcupadasNoDia(day: Date) {
 
     // escolher check-out
     if (checkin && !checkout) {
-      if (day <= checkin) return;
+      // allow clicking earlier day to restart selection
+      if (startOfDay(day) <= startOfDay(checkin)) {
+        if (estado === 'full') return;
+        const d = new Date(day);
+        d.setHours(14, 0, 0, 0);
+        setCheckin(d);
+        return;
+      }
+
+      // checkout day itself must not be full (per your logic)
       if (estado === 'full') return;
 
-      // verificar dias intermédios
-      for (
-        let d = new Date(checkin);
-        d < day;
-        d.setDate(d.getDate() + 1)
-      ) {
+      // verificar dias intermédios (checkin..day) precisam estar livres
+      for (let d = startOfDay(checkin); d < startOfDay(day); ) {
         if (estadoDoDia(d) !== 'free') return;
+        d.setDate(d.getDate() + 1);
       }
 
       const out = new Date(day);
@@ -141,10 +157,7 @@ function camasOcupadasNoDia(day: Date) {
         <button
           onClick={() =>
             setCurrentMonth(
-              new Date(
-                currentMonth.getFullYear(),
-                currentMonth.getMonth() - 1
-              )
+              new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1)
             )
           }
         >
@@ -161,10 +174,7 @@ function camasOcupadasNoDia(day: Date) {
         <button
           onClick={() =>
             setCurrentMonth(
-              new Date(
-                currentMonth.getFullYear(),
-                currentMonth.getMonth() + 1
-              )
+              new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1)
             )
           }
         >
@@ -177,23 +187,33 @@ function camasOcupadasNoDia(day: Date) {
           const estado = estadoDoDia(day);
           const ocupadas = camasOcupadasNoDia(day);
 
+          const selected = isInSelectedRange(day);
+          const edge = isRangeEdge(day);
+
+          const baseColor =
+            estado === 'free'
+              ? 'bg-emerald-100 cursor-pointer'
+              : estado === 'partial'
+              ? 'bg-yellow-200 cursor-pointer'
+              : 'bg-red-300 cursor-not-allowed';
+
+          // Selection overlay:
+          // - edges: darker green
+          // - middle: slightly darker green
+          // (we override background color only when selected)
+          const selectionColor = edge ? 'bg-emerald-600' : 'bg-emerald-400';
+          const selectionText = 'text-white';
+
           return (
             <div
               key={day.toISOString()}
               onClick={() => handleClick(day)}
               className={`p-3 rounded text-center text-sm select-none
-                ${
-                  estado === 'free'
-                    ? 'bg-emerald-100 cursor-pointer'
-                    : estado === 'partial'
-                    ? 'bg-yellow-200 cursor-pointer'
-                    : 'bg-red-300 cursor-not-allowed'
-                }
-                ${isSelected(day) ? 'ring-2 ring-black' : ''}
+                ${selected ? `${selectionColor} ${selectionText} cursor-pointer` : baseColor}
               `}
             >
               {day.getDate()}
-              <div className="text-xs">
+              <div className={`text-xs ${selected ? 'text-white/90' : ''}`}>
                 {ocupadas}/{capacidade}
               </div>
             </div>

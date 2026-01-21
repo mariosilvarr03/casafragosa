@@ -53,6 +53,7 @@ export default function RoomCalendar({ quarto }: { quarto: string }) {
     return x;
   }
 
+
   function sameDay(a: Date, b: Date) {
     return startOfDay(a).getTime() === startOfDay(b).getTime();
   }
@@ -68,19 +69,19 @@ export default function RoomCalendar({ quarto }: { quarto: string }) {
   function camasOcupadasNoDia(day: Date) {
     const day0 = startOfDay(day);
 
-    return reservas.reduce((sum, r) => {
-      const ci0 = startOfDay(new Date(r.checkin));
-      const co0 = startOfDay(new Date(r.checkout)); // dia de checkout NÃO conta
+    return reservas
+      .filter((r) => r.quarto === quarto) // ✅ FILTRO ESSENCIAL
+      .reduce((sum, r) => {
+        const ci0 = startOfDay(new Date(r.checkin));
+        const co0 = startOfDay(new Date(r.checkout));
+        const ocupa = day0 >= ci0 && day0 < co0;
+        if (!ocupa) return sum;
 
-      // ocupa se day está em [checkinDay, checkoutDay)
-      const ocupa = day0 >= ci0 && day0 < co0;
-
-      if (!ocupa) return sum;
-
-      const camas = Number(r.camas || 0);
-      return sum + (Number.isFinite(camas) ? camas : 0);
-    }, 0);
+        const camas = Number(r.camas ?? 0);
+        return sum + (Number.isFinite(camas) ? camas : 0);
+      }, 0);
   }
+
 
   function estadoDoDia(day: Date) {
     const ocupadas = camasOcupadasNoDia(day);

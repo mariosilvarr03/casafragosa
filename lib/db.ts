@@ -1,14 +1,10 @@
 // lib/db.ts
 import Database from 'better-sqlite3';
-
 import path from 'path';
-
 
 const dbPath = path.join(process.cwd(), 'data', 'dev.db');
 const db = new Database(dbPath);
 
-
-// criar tabela se não existir
 db.exec(`
   CREATE TABLE IF NOT EXISTS Reserva (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,6 +15,15 @@ db.exec(`
     nomeHospede TEXT NOT NULL,
     source TEXT NOT NULL,
     status TEXT NOT NULL
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS SyncLog (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ranAt TEXT NOT NULL,
+    ok INTEGER NOT NULL,
+    summary TEXT NOT NULL
   );
 `);
 

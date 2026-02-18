@@ -26,6 +26,8 @@ export async function GET() {
   return NextResponse.json(reservas);
 }
 
+
+
 export async function POST(req: NextRequest) {
   const data = await req.json();
 
@@ -56,6 +58,32 @@ export async function POST(req: NextRequest) {
       { error: 'Checkout tem de ser depois do checkin.' },
       { status: 400 }
     );
+  }
+
+  // --- server-side validation for manual bookings ---
+  const isManual = (data.source || 'manual') === 'manual';
+
+  if (isManual) {
+    const nomeHospede = String(data.nomeHospede || '').trim();
+    const phoneRaw = String(data.phone || '').trim();
+    const emailRaw = String(data.email || '').trim();
+
+    // Unicode-safe name: letters, spaces, hyphen, apostrophe (min 2 chars)
+    const nameRegex = /^[\p{L}'\-\s]{2,}$/u;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!nomeHospede || !nameRegex.test(nomeHospede)) {
+      return NextResponse.json({ error: 'Nome inválido.' }, { status: 400 });
+    }
+
+    const digitsOnly = phoneRaw.replace(/\D/g, '');
+    if (!digitsOnly || digitsOnly.length < 8 || digitsOnly.length > 15) {
+      return NextResponse.json({ error: 'Telefone inválido.' }, { status: 400 });
+    }
+
+    if (!emailRaw || !emailRegex.test(emailRaw)) {
+      return NextResponse.json({ error: 'Email inválido.' }, { status: 400 });
+    }
   }
 
   // vamos validar por dia: [checkinDay, checkoutDay)
@@ -110,8 +138,8 @@ export async function POST(req: NextRequest) {
 
   // inserir
   const stmt = db.prepare(`
-    INSERT INTO Reserva (quarto, checkin, checkout, camas, nomeHospede, source, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO Reserva (quarto, checkin, checkout, camas, nomeHospede, phone, email, source, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -120,6 +148,8 @@ export async function POST(req: NextRequest) {
     checkout.toISOString(),
     camasPedidas,
     data.nomeHospede || 'Sem nome',
+    data.phone ?? null,
+    data.email ?? null,
     data.source || 'manual',
     data.status || 'confirmada'
   );

@@ -76,8 +76,8 @@ export async function syncIcalToDb({ quarto, source, url, camasDefault }: SyncAr
     db.prepare(`DELETE FROM Reserva WHERE quarto = ? AND source = ?`).run(quarto, source);
 
     const insert = db.prepare(`
-      INSERT INTO Reserva (quarto, checkin, checkout, camas, nomeHospede, source, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO Reserva (quarto, checkin, checkout, camas, nomeHospede, phone, email, source, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     for (const e of events) {
@@ -87,6 +87,8 @@ export async function syncIcalToDb({ quarto, source, url, camasDefault }: SyncAr
         e.checkoutISO,
         e.camas,
         e.nome,
+        null,
+        null,
         source,
         'confirmada'
       );

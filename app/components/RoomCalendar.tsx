@@ -108,10 +108,11 @@ export default function RoomCalendar({ quarto }: { quarto: string }) {
 
   function handleClick(day: Date) {
     const estado = estadoDoDia(day);
+    const requestedBeds = 1; // selection assumes 1 bed
 
     // escolher check-in
     if (!checkin) {
-      if (estado === 'full') return;
+      if (camasOcupadasNoDia(day) + requestedBeds > capacidade) return;
 
       const d = new Date(day);
       d.setHours(14, 0, 0, 0);
@@ -123,19 +124,19 @@ export default function RoomCalendar({ quarto }: { quarto: string }) {
     if (checkin && !checkout) {
       // allow clicking earlier day to restart selection
       if (startOfDay(day) <= startOfDay(checkin)) {
-        if (estado === 'full') return;
+        if (camasOcupadasNoDia(day) + requestedBeds > capacidade) return;
         const d = new Date(day);
         d.setHours(14, 0, 0, 0);
         setCheckin(d);
         return;
       }
 
-      // checkout day itself must not be full (per your logic)
-      if (estado === 'full') return;
+      // checkout day itself must have capacity for requested beds
+      if (camasOcupadasNoDia(day) + requestedBeds > capacidade) return;
 
-      // verificar dias intermédios (checkin..day) precisam estar livres
+      // verificar dias intermédios (checkin..day) precisam ter capacidade
       for (let d = startOfDay(checkin); d < startOfDay(day); ) {
-        if (estadoDoDia(d) !== 'free') return;
+        if (camasOcupadasNoDia(d) + requestedBeds > capacidade) return;
         d.setDate(d.getDate() + 1);
       }
 
